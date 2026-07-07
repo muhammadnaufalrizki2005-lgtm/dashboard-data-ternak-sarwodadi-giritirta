@@ -5,26 +5,28 @@ import folium
 from streamlit_folium import st_folium
 from streamlit_option_menu import option_menu
 
-# Konfigurasi Halaman (Minimalist & Clean)
+# Konfigurasi Halaman
 st.set_page_config(page_title="Dashboard Pendataan Ternak", layout="wide")
 
-# Fungsi Load & Clean Data
+# Fungsi Load Data
 @st.cache_data
 def load_data():
-    # Membaca file excel, header ada di baris ke-2 (index 1)
     file_path = 'Data Ternak Sarwodadi, Giritirta.xlsx'
-    df = pd.read_excel(file_path, sheet_name='SARWODADI', header=1)
+    try:
+        df = pd.read_excel(file_path, sheet_name='SARWODADI', header=1)
+    except:
+        file_path_csv = 'Data Ternak Sarwodadi, Giritirta.xlsx - SARWODADI.csv'
+        df = pd.read_csv(file_path_csv, header=1)
     
-    # Mengambil kolom khusus Dusun Sarwodadi saja (kolom 0 sampai 9)
     df_s = df.iloc[:, 0:10].copy()
-    df_s.columns = ['No', 'Nama Pemilik', 'NIK', 'Alamat', 'Jenis Ternak', 'Jenis kelamin', 'Jumlah', 'Total', 'Ketersediaan', 'Keterangan']
+    df_s.columns = ['No', 'Nama Pemilik', 'RT', 'RW', 'Jenis Ternak', 'Jenis kelamin', 'Jumlah', 'Total', 'Ketersediaan', 'Keterangan']
     
-    # Forward fill untuk mengisi sel yang di-merge
-    df_s[['No', 'Nama Pemilik', 'NIK', 'Alamat', 'Jenis Ternak']] = df_s[['No', 'Nama Pemilik', 'NIK', 'Alamat', 'Jenis Ternak']].ffill()
+    df_s[['No', 'Nama Pemilik', 'RT', 'RW', 'Jenis Ternak']] = df_s[['No', 'Nama Pemilik', 'RT', 'RW', 'Jenis Ternak']].ffill()
     
-    # Membuang baris yang kosong pada kolom Jumlah dan Jenis kelamin
     df_s = df_s.dropna(subset=['Jenis kelamin', 'Jumlah']).copy()
     df_s['Jumlah'] = pd.to_numeric(df_s['Jumlah'], errors='coerce')
+    
+    df_s['Alamat'] = "RT 0" + df_s['RT'].astype(str).str.replace('.0', '', regex=False) + " / RW 0" + df_s['RW'].astype(str).str.replace('.0', '', regex=False)
     
     return df_s
 
@@ -37,7 +39,7 @@ earth_tones = ['#8D6E63', '#D7CCC8', '#A1887F', '#5D4037', '#BCAAA4']
 with st.sidebar:
     menu = option_menu(
         "📌 Menu Navigasi",
-        ["📖 Profil Dusun", "📊 Dashboard Ternak"],
+        ["📖 Profil Wilayah", "📊 Dashboard Ternak"],
         menu_icon="list",
         default_index=0,
         styles={
@@ -49,32 +51,34 @@ with st.sidebar:
     )
 
 # Halaman Profil
-if menu == "📖 Profil Dusun":
-    st.markdown("## 📖 Profil Dusun Sarwodadi, Giritirta")
+if menu == "📖 Profil Wilayah":
+    st.markdown("## 📖 Profil Desa Sarwodadi & Giritirta")
     st.write("---")
     
     st.markdown("""
-    **Dusun Sarwodadi** merupakan salah satu wilayah di Desa Giritirta. Wilayah ini memiliki potensi besar di sektor peternakan yang menjadi salah satu pilar ekonomi warganya.
+    **Desa Sarwodadi dan Desa Giritirta** merupakan desa yang terletak di **Kecamatan Pejawaran, Kabupaten Banjarnegara, Provinsi Jawa Tengah**. 
     
-    ### 👥 Potensi Peternakan
-    Sebagian besar warga Dusun Sarwodadi menggantungkan hidupnya sebagai peternak. Berdasarkan pendataan terbaru, komoditas ternak utama di wilayah ini meliputi:
+    Berada di kawasan pegunungan utara Banjarnegara yang sejuk, wilayah ini dikaruniai kondisi alam yang sangat mendukung untuk sektor pertanian dan peternakan. 
+    
+    ### 👥 Potensi Peternakan Warga
+    Sektor peternakan menjadi salah satu pilar ekonomi utama bagi warga di wilayah ini. Berdasarkan pendataan mandiri, komoditas ternak yang paling banyak dibudidayakan oleh warga meliputi:
     * **Kambing**
     * **Domba**
     * **Sapi**
     
-    Sektor ini sangat potensial untuk dikembangkan lebih lanjut melalui program-program optimalisasi pakan dan manajemen kesehatan ternak.
+    Tingginya antusiasme warga dalam beternak menjadikan desa ini sangat potensial untuk menjadi desa percontohan dalam hal optimalisasi pakan dan kemandirian pangan.
     """)
 
-    # Peta Dummy (Silakan sesuaikan koordinatnya)
-    st.markdown("### 🗺️ Lokasi Giritirta")
-    giritirta_coords = [-8.0333, 110.3667] # Koordinat ilustrasi
-    m = folium.Map(location=giritirta_coords, zoom_start=13)
+    # Peta Pejawaran, Banjarnegara
+    st.markdown("### 🗺️ Lokasi Kecamatan Pejawaran")
+    pejawaran_coords = [-7.2435, 109.8450] # Titik tengah area Banjarnegara utara
+    m = folium.Map(location=pejawaran_coords, zoom_start=12)
 
     folium.Marker(
-        location=giritirta_coords,
-        popup="Giritirta",
-        tooltip="Lokasi Desa Giritirta",
-        icon=folium.Icon(color="darkred", icon="home")
+        location=pejawaran_coords,
+        popup="Kecamatan Pejawaran",
+        tooltip="Lokasi Pejawaran, Banjarnegara",
+        icon=folium.Icon(color="darkgreen", icon="leaf")
     ).add_to(m)
 
     st_folium(m, width=700, height=400)
@@ -88,7 +92,6 @@ elif menu == "📊 Dashboard Ternak":
     # === Sidebar Filter ===
     st.sidebar.header("🔎 Filter Data")
     
-    # Filter RT/Alamat
     alamat_list = sorted(data_peternak["Alamat"].dropna().unique())
     selected_alamat = st.sidebar.multiselect(
         "Pilih Wilayah (RT/RW)", 
