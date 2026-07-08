@@ -24,17 +24,16 @@ def load_data():
     
     df_s['Jumlah Dewasa'] = pd.to_numeric(df_s['Jumlah Dewasa'], errors='coerce').fillna(0)
     df_s['Anakan'] = pd.to_numeric(df_s['Anakan'], errors='coerce').fillna(0)
-    df_s['Total'] = pd.to_numeric(df_s['Total'], errors='coerce').fillna(0)
     
     df_s['Ketersediaan'] = df_s['Ketersediaan'].fillna('Belum Konfirmasi')
     
-    # Membersihkan format RT/RW agar tampil rapi di grafik
+    # Membersihkan format RT/RW agar tampil rapi di sumbu X grafik
     df_s['RT'] = "RT 0" + df_s['RT'].astype(str).str.replace('.0', '', regex=False)
     df_s['RW'] = "RW 0" + df_s['RW'].astype(str).str.replace('.0', '', regex=False)
     
     df_s = df_s[df_s['Jenis kelamin'].notna() | (df_s['Jumlah Dewasa'] > 0) | (df_s['Anakan'] > 0)]
     
-    # Menghitung Total Ekor (Dewasa + Anakan) untuk grafik
+    # Menghitung Total Ekor (Dewasa + Anakan)
     df_s['Total Ekor'] = df_s['Jumlah Dewasa'] + df_s['Anakan']
     
     return df_s
@@ -80,12 +79,12 @@ if menu == "📖 Profil Wilayah":
     ).add_to(m)
     st_folium(m, width=700, height=400)
 
-# ================= HALAMAN 2: DASHBOARD (SEPERTI KATING) =================
+# ================= HALAMAN 2: DASHBOARD =================
 elif menu == "📊 Dashboard Data Pertanian":
     st.title("📊 Dashboard Pendataan Peternak Warga")
     st.write("---")
 
-    # === Sidebar Filter (Radio Button seperti kating) ===
+    # === Sidebar Filter ===
     st.sidebar.header("🔎 Filter Data")
     filter_mode = st.sidebar.radio("Filter berdasarkan:", ["RW", "RT"])
 
@@ -93,12 +92,10 @@ elif menu == "📊 Dashboard Data Pertanian":
         pilihan_unik = sorted(data_peternak["RW"].unique())
         selected_lokasi = st.sidebar.multiselect("Pilih RW", options=pilihan_unik, default=pilihan_unik)
         filtered_data = data_peternak[data_peternak["RW"].isin(selected_lokasi)]
-        kolom_sumbu_x = "RW"
     else:
         pilihan_unik = sorted(data_peternak["RT"].unique())
         selected_lokasi = st.sidebar.multiselect("Pilih RT", options=pilihan_unik, default=pilihan_unik)
         filtered_data = data_peternak[data_peternak["RT"].isin(selected_lokasi)]
-        kolom_sumbu_x = "RT"
 
     # === Dataframe di Atas ===
     st.subheader("📄 Data Peternak")
@@ -106,28 +103,31 @@ elif menu == "📊 Dashboard Data Pertanian":
     st.dataframe(tabel_tampil, use_container_width=True)
     st.write("---")
 
-    # === Bar chart per RT/RW ===
-    st.subheader(f"📊 Total Ternak per {kolom_sumbu_x}")
-    total_per_wilayah = filtered_data.groupby([kolom_sumbu_x, "Jenis Ternak"])["Total Ekor"].sum().reset_index()
-    
-    fig_bar = px.bar(
-        total_per_wilayah,
-        x=kolom_sumbu_x, y="Total Ekor", color="Jenis Ternak",
-        barmode="group",
-        color_discrete_sequence=earth_tones,
-        text_auto=True
+    # === Bar chart per RT ===
+    st.subheader("📊 Total Ternak per RT")
+    total_per_rt = filtered_data.groupby(["RT", "Jenis Ternak"])["Total Ekor"].sum().reset_index()
+    fig_rt = px.bar(
+        total_per_rt, x="RT", y="Total Ekor", color="Jenis Ternak",
+        barmode="group", color_discrete_sequence=earth_tones, text_auto=True
     )
-    # Memaksa agar sumbu X rapi berjejer
-    fig_bar.update_xaxes(type='category')
-    st.plotly_chart(fig_bar, use_container_width=True)
+    fig_rt.update_xaxes(type='category', title_text='Rukun Tetangga (RT)')
+    st.plotly_chart(fig_rt, use_container_width=True)
+
+    # === Bar chart per RW ===
+    st.subheader("🏘️ Total Ternak per RW")
+    total_per_rw = filtered_data.groupby(["RW", "Jenis Ternak"])["Total Ekor"].sum().reset_index()
+    fig_rw = px.bar(
+        total_per_rw, x="RW", y="Total Ekor", color="Jenis Ternak",
+        barmode="group", color_discrete_sequence=earth_tones, text_auto=True
+    )
+    fig_rw.update_xaxes(type='category', title_text='Rukun Warga (RW)')
+    st.plotly_chart(fig_rw, use_container_width=True)
 
     # === Pie chart total ===
     st.subheader("🥧 Distribusi Ternak Keseluruhan")
     total_all = filtered_data.groupby("Jenis Ternak")["Total Ekor"].sum().reset_index()
     fig_pie = px.pie(
-        total_all,
-        names="Jenis Ternak",
-        values="Total Ekor",
+        total_all, names="Jenis Ternak", values="Total Ekor",
         color_discrete_sequence=earth_tones
     )
     st.plotly_chart(fig_pie, use_container_width=True)
